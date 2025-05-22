@@ -1,6 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import json5 from 'vite-plugin-json5';
 
 export default defineConfig({
-	plugins: [sveltekit()]
+	plugins: [sveltekit(), json5()]
 });
