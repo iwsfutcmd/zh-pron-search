@@ -40,19 +40,21 @@
 </script>
 
 <main>
-	<div id="options">
-		<input type="search" bind:value={input} oninput={() => (page = 0)} />
-		<select bind:value={system} onchange={() => (page = 0)}>
-			{#each systems as key}
-				<option value={key}>{key}</option>
-			{/each}
-		</select>
-	</div>
-	<div id="pagination">
-		{#if total > 0}
-			<button onclick={previousPage} disabled={page === 0}>←</button>
-			<button onclick={nextPage} disabled={page >= totalPages - 1}>→</button>
-		{/if}
+	<div id="header">
+		<div id="options">
+			<input type="search" bind:value={input} oninput={() => (page = 0)} />
+			<select bind:value={system} onchange={() => (page = 0)}>
+				{#each systems as key}
+					<option value={key}>{key}</option>
+				{/each}
+			</select>
+		</div>
+		<div id="pagination">
+			{#if totalPages > 1}
+				<button onclick={previousPage} disabled={page === 0}>←</button>
+				<button onclick={nextPage} disabled={page >= totalPages - 1}>→</button>
+			{/if}
+		</div>
 	</div>
 	<div id="results">
 		{#if input}
@@ -70,7 +72,15 @@
 
 <style>
 	main {
+		position: relative;
 		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	#header {
+		display: flex;
+		position: sticky;
+		inset-block-start: 0.5rem;
 		flex-direction: column;
 		gap: 0.5rem;
 	}
@@ -81,6 +91,10 @@
 	#pagination {
 		display: flex;
 		justify-content: space-between;
+	}
+	#pagination button {
+		inline-size: 100%;
+		block-size: 2rem;
 	}
 	#results .pron {
 		text-align: center;

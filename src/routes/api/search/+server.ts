@@ -1,10 +1,5 @@
 import type { RequestHandler } from './$types';
 import data from '$lib/data';
-import type { Config } from '@sveltejs/adapter-vercel';
-
-export const config: Config = {
-	runtime: 'edge'
-};
 
 let db: any;
 
