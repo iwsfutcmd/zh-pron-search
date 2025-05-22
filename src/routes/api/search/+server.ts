@@ -1,9 +1,13 @@
 import type { RequestHandler } from './$types';
 import data from '$lib/data';
+import type { Config } from '@sveltejs/adapter-vercel';
+
+export const config: Config = {
+	runtime: 'edge'
+};
 
 let db: any;
 
-// Initialize database on server startup
 const initDb = async () => {
 	const initSqlJs = (await import('sql.js')).default;
 	const SQL = await initSqlJs();
@@ -34,7 +38,6 @@ const initDb = async () => {
 	});
 };
 
-// Initialize database when the server starts
 initDb();
 
 type DbResult = { values: [string, string][] };
@@ -42,11 +45,28 @@ type DbResult = { values: [string, string][] };
 export const GET: RequestHandler = async ({ url }) => {
 	const regex = (url.searchParams.get('regex') || '').normalize('NFC');
 	const system = url.searchParams.get('system') || '';
-	const query = `
-        SELECT pron, chars FROM ${system} WHERE regexp(?, pron);
+	const page = parseInt(url.searchParams.get('page') || '0');
+	const limit = parseInt(url.searchParams.get('limit') || '10');
+	const offset = page * limit;
+
+	const countQuery = `
+        SELECT COUNT(*) as count FROM ${system} WHERE regexp(?, pron);
     `;
-	const res = db.exec(query, [regex]) as DbResult[];
+	const countRes = db.exec(countQuery, [regex]) as DbResult[];
+	const total = countRes[0]?.values[0][0] || '0';
+
+	const query = `
+        SELECT pron, chars FROM ${system} WHERE regexp(?, pron)
+        ORDER BY pron
+        LIMIT ? OFFSET ?;
+    `;
+	const res = db.exec(query, [regex, limit, offset]) as DbResult[];
 	const results = res[0]?.values.map(([pron, chars]) => [pron, chars]) || [];
 
-	return new Response(JSON.stringify(results));
+	return new Response(
+		JSON.stringify({
+			results,
+			total: parseInt(total)
+		})
+	);
 };
