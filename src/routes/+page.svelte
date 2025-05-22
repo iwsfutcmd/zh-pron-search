@@ -1,23 +1,34 @@
 <script lang="ts">
-	import systems from '$lib/systems';
+	import { onMount } from 'svelte';
+	import type { Database } from 'sql.js';
 	const LIMIT = 10;
-	const search = async (regex: string, system: string, page: number) => {
-		const params = new URLSearchParams();
-		params.append('regex', regex);
-		params.append('system', system);
-		params.append('limit', `${LIMIT}`);
-		params.append('page', `${page}`);
-		const res = await fetch(`/api/search?${params.toString()}`);
-		const data = await res.json();
-		results = data.results;
-		total = data.total;
+
+	const search = (regex: string, system: string, page: number) => {
+		const offset = page * LIMIT;
+
+		const countQuery = `
+            SELECT COUNT(*) as count FROM ${system} WHERE regexp(?, pron);
+        `;
+		const countRes = db.exec(countQuery, [regex]);
+		total = (countRes[0]?.values[0][0] as number) ?? 0;
+
+		const query = `
+            SELECT pron, chars FROM ${system} WHERE regexp(?, pron)
+            ORDER BY pron
+            LIMIT ? OFFSET ?;
+        `;
+		const res = db.exec(query, [regex, LIMIT, offset]);
+		results = res[0]?.values.map(([pron, chars]) => [pron as string, chars as string]) ?? [];
+
 		totalPages = Math.ceil(total / LIMIT);
 	};
-	let system = $state(systems[0]);
+	let system = $state('');
 	let input = $state('');
 	let page = $state(0);
 	let total = $state(0);
 	let results: [string, string][] = $state([]);
+	let systems = $state([] as string[]);
+
 	let totalPages = $state(0);
 
 	$effect(() => {
@@ -37,6 +48,30 @@
 	const nextPage = () => {
 		if (page < totalPages - 1) page++;
 	};
+	let db: Database;
+	onMount(async () => {
+		const initSqlJs = (await import('sql.js')).default;
+		const SQL = await initSqlJs({
+			locateFile: () => '/sql-wasm.wasm'
+		});
+		const res = await fetch('/characters.sqlite');
+		const buffer = await res.arrayBuffer();
+
+		db = new SQL.Database(new Uint8Array(buffer));
+		db.create_function('regexp', (pattern: string, value: string) => {
+			if (typeof value !== 'string') return false;
+			try {
+				return new RegExp(pattern).test(value);
+			} catch {
+				return false;
+			}
+		});
+
+		const tableQuery = "SELECT name FROM sqlite_master WHERE type='table';";
+		const tableResult = db.exec(tableQuery);
+		systems = tableResult[0]?.values.map((row) => row[0] as string) ?? [];
+		system = systems[0];
+	});
 </script>
 
 <main>
