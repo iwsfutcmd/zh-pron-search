@@ -1,60 +1,70 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import { onMount } from 'svelte';
+	// import { browser } from '$app/environment';
+	// import { onMount } from 'svelte';
 	import { type Database } from 'sql.js';
 	import data from '$lib/data';
-	let system = 'TsyetHjunH';
-	let input = '';
-	let db: Database;
-
-	const search = (regex: string, system: string): [string, string][] => {
-		const query = `
-            SELECT pron, chars FROM ${system} WHERE regexp(?, pron);
-        `;
-		const res = db.exec(query, [regex]);
-		return res[0]?.values.map(([pron, chars]) => [pron as string, chars as string]) || [];
+	const search = async (query: { regex: string; system: string }) => {
+		const params = new URLSearchParams();
+		params.append('regex', query.regex);
+		params.append('system', query.system);
+		const res = await fetch(`/search?${params.toString()}`);
+		return await res.json();
 	};
 
-	onMount(async () => {
-		if (!browser) return;
+	let system = $state('TsyetHjunH');
+	let input = $state('');
+	let results: [string, string][] = $state([]);
 
-		const initSqlJs = (await import('sql.js')).default;
-		const wasmUrl = (await import('sql.js/dist/sql-wasm.wasm?url')).default;
-
-		const SQL = await initSqlJs({
-			locateFile: () => wasmUrl
-		});
-
-		db = new SQL.Database();
-		db.create_function('regexp', (pattern: string, text: string) => {
-			try {
-				return new RegExp(`${pattern}`).test(text);
-			} catch {
-				return false;
-			}
-		});
-		Object.keys(data).forEach((system) => {
-			db.run(`
-                CREATE TABLE ${system} (
-                pron TEXT PRIMARY KEY,
-                chars TEXT
-                );
-            `);
-
-			const insert = db.prepare(`INSERT INTO ${system} (pron, chars) VALUES (?, ?)`);
-
-			for (const [pron, chars] of Object.entries(data[system])) {
-				insert.run([pron, [...chars].join('')]);
-			}
-			insert.free();
-		});
+	$effect(() => {
+		if (input) {
+			search({ regex: input, system }).then((newResults) => {
+				results = newResults;
+			});
+		} else {
+			results = [];
+		}
 	});
+
+	// onMount(async () => {
+	// 	if (!browser) return;
+
+	// 	const initSqlJs = (await import('sql.js')).default;
+	// 	const wasmUrl = (await import('sql.js/dist/sql-wasm.wasm?url')).default;
+
+	// 	const SQL = await initSqlJs({
+	// 		locateFile: () => wasmUrl
+	// 	});
+
+	// 	db = new SQL.Database();
+	// 	db.create_function('regexp', (pattern: string, text: string) => {
+	// 		try {
+	// 			return new RegExp(`${pattern}`).test(text);
+	// 		} catch {
+	// 			return false;
+	// 		}
+	// 	});
+	// 	Object.keys(data).forEach((system) => {
+	// 		db.run(`
+	//             CREATE TABLE ${system} (
+	//             pron TEXT PRIMARY KEY,
+	//             chars TEXT
+	//             );
+	//         `);
+
+	// 		const insert = db.prepare(`INSERT INTO ${system} (pron, chars) VALUES (?, ?)`);
+
+	// 		for (const [pron, chars] of Object.entries(data[system])) {
+	// 			insert.run([pron, [...chars].join('')]);
+	// 		}
+	// 		insert.free();
+	// 	});
+	// });
 </script>
 
 <div id="options">
-	<input type="text" bind:value={input} />
+	<input type="search" bind:value={input} />
 
-	<select bind:value={system} onchange={() => (input = '')}>
+	<select bind:value={system}>
 		{#each Object.keys(data) as key}
 			<option value={key}>{key}</option>
 		{/each}
@@ -62,7 +72,7 @@
 </div>
 <div id="results">
 	{#if input}
-		{#each (search(input, system) ?? []).toSorted() as [pron, chars]}
+		{#each results as [pron, chars]}
 			<div>{pron}</div>
 			<div>
 				{#each chars as char}
