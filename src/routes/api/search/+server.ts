@@ -1,44 +1,28 @@
 import type { RequestHandler } from './$types';
-import data from '$lib/data';
 
-let db: any;
-
-const initDb = async () => {
-	const initSqlJs = (await import('sql.js')).default;
-	const SQL = await initSqlJs({
-		locateFile: () => '/sql-wasm.wasm'
-	});
-	db = new SQL.Database();
-	db.create_function('regexp', (pattern: string, text: string) => {
-		try {
-			return new RegExp(`${pattern}`).test(text);
-		} catch {
-			return false;
-		}
-	});
-
-	Object.keys(data).forEach((system) => {
-		db.run(`
-            CREATE TABLE ${system} (
-                pron TEXT PRIMARY KEY,
-                chars TEXT
-            );
-        `);
-
-		const insert = db.prepare(`INSERT INTO ${system} (pron, chars) VALUES (?, ?)`);
-
-		for (const [pron, chars] of Object.entries(data[system])) {
-			insert.run([pron, [...chars].join('')]);
-		}
-		insert.free();
-	});
-};
-
-initDb();
+let db: any = null;
 
 type DbResult = { values: [string, string][] };
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ fetch, url }) => {
+	if (!db) {
+		const initSqlJs = (await import('sql.js')).default;
+		const SQL = await initSqlJs({
+			locateFile: () => '/sql-wasm.wasm'
+		});
+		const res = await fetch('/characters.sqlite');
+		const buffer = await res.arrayBuffer();
+
+		db = new SQL.Database(new Uint8Array(buffer));
+		db.create_function('regexp', (pattern: string, value: string) => {
+			if (typeof value !== 'string') return false;
+			try {
+				return new RegExp(pattern).test(value);
+			} catch {
+				return false;
+			}
+		});
+	}
 	const regex = (url.searchParams.get('regex') || '').normalize('NFC');
 	const system = url.searchParams.get('system') || '';
 	const page = parseInt(url.searchParams.get('page') || '0');
