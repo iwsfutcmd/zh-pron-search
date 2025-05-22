@@ -5,8 +5,9 @@ let db: any;
 
 const initDb = async () => {
 	const initSqlJs = (await import('sql.js')).default;
-	const SQL = await initSqlJs();
-
+	const SQL = await initSqlJs({
+		locateFile: () => '/sql-wasm.wasm'
+	});
 	db = new SQL.Database();
 	db.create_function('regexp', (pattern: string, text: string) => {
 		try {
