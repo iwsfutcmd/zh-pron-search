@@ -3,16 +3,16 @@
 	import { onMount } from 'svelte';
 	import { type Database } from 'sql.js';
 	import data from '$lib/data';
-	let system = 'GwongDung';
+	let system = 'TsyetHjunH';
 	let input = '';
 	let db: Database;
 
-	const search = (regex: string, system: string) => {
+	const search = (regex: string, system: string): [string, string][] => {
 		const query = `
-            SELECT pron, chars FROM ${system} WHERE regexp('${regex}', pron);
+            SELECT pron, chars FROM ${system} WHERE regexp(?, pron);
         `;
-		const res = db.exec(query);
-		return res[0]?.values || [];
+		const res = db.exec(query, [regex]);
+		return res[0]?.values.map(([pron, chars]) => [pron as string, chars as string]) || [];
 	};
 
 	onMount(async () => {
@@ -28,7 +28,7 @@
 		db = new SQL.Database();
 		db.create_function('regexp', (pattern: string, text: string) => {
 			try {
-				return new RegExp(pattern).test(text);
+				return new RegExp(`${pattern}`).test(text);
 			} catch {
 				return false;
 			}
@@ -44,23 +44,17 @@
 			const insert = db.prepare(`INSERT INTO ${system} (pron, chars) VALUES (?, ?)`);
 
 			for (const [pron, chars] of Object.entries(data[system])) {
-				insert.run([pron, chars.join('')]);
+				insert.run([pron, [...chars].join('')]);
 			}
-			// for (const [char, entries] of GwongDungRawData) {
-			// 	for (const entry of entries) {
-			// 		insert.run([entry[0], char]);
-			// 	}
-			// }
 			insert.free();
 		});
-		// Set up schema, insert data, etc.
 	});
 </script>
 
 <div id="options">
 	<input type="text" bind:value={input} />
 
-	<select bind:value={system}>
+	<select bind:value={system} onchange={() => (input = '')}>
 		{#each Object.keys(data) as key}
 			<option value={key}>{key}</option>
 		{/each}
