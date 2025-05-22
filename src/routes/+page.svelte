@@ -1,8 +1,4 @@
 <script lang="ts">
-	// import { browser } from '$app/environment';
-	// import { onMount } from 'svelte';
-	import { type Database } from 'sql.js';
-	import data from '$lib/data';
 	const search = async (query: { regex: string; system: string }) => {
 		const params = new URLSearchParams();
 		params.append('regex', query.regex);
@@ -10,8 +6,8 @@
 		const res = await fetch(`/search?${params.toString()}`);
 		return await res.json();
 	};
-
-	let system = $state('TsyetHjunH');
+	const systems = ['GwongDung', 'PinYin', 'SouTseu', 'TungDzih', 'TsyetHjunH'];
+	let system = $state(systems[0]);
 	let input = $state('');
 	let results: [string, string][] = $state([]);
 
@@ -24,48 +20,13 @@
 			results = [];
 		}
 	});
-
-	// onMount(async () => {
-	// 	if (!browser) return;
-
-	// 	const initSqlJs = (await import('sql.js')).default;
-	// 	const wasmUrl = (await import('sql.js/dist/sql-wasm.wasm?url')).default;
-
-	// 	const SQL = await initSqlJs({
-	// 		locateFile: () => wasmUrl
-	// 	});
-
-	// 	db = new SQL.Database();
-	// 	db.create_function('regexp', (pattern: string, text: string) => {
-	// 		try {
-	// 			return new RegExp(`${pattern}`).test(text);
-	// 		} catch {
-	// 			return false;
-	// 		}
-	// 	});
-	// 	Object.keys(data).forEach((system) => {
-	// 		db.run(`
-	//             CREATE TABLE ${system} (
-	//             pron TEXT PRIMARY KEY,
-	//             chars TEXT
-	//             );
-	//         `);
-
-	// 		const insert = db.prepare(`INSERT INTO ${system} (pron, chars) VALUES (?, ?)`);
-
-	// 		for (const [pron, chars] of Object.entries(data[system])) {
-	// 			insert.run([pron, [...chars].join('')]);
-	// 		}
-	// 		insert.free();
-	// 	});
-	// });
 </script>
 
 <div id="options">
 	<input type="search" bind:value={input} />
 
 	<select bind:value={system}>
-		{#each Object.keys(data) as key}
+		{#each systems as key}
 			<option value={key}>{key}</option>
 		{/each}
 	</select>
